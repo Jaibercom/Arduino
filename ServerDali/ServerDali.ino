@@ -8,77 +8,51 @@
  * for the Adafruit ESP8266 HUZZAH but the LED may be on a different pin on
  * other breakout boards.
  *
- * Imperatives to turn the LED on/off using a non-browser http client.
- * For example, using wget.
- * $ wget http://esp8266webform.local/ledon
- * $ wget http://esp8266webform.local/ledoff
 */
-
+/*
 #include <ESP8266WiFi.h>
 #include <WiFiClient.h>
 #include <ESP8266WebServer.h>
 #include <ESP8266mDNS.h>
+*/
+#include "MyServer.h"
 
+// Functions
+void handleRoot();
+void handleNotFound();
+void handleSubmit();
+void writeLED(bool LEDon);
+/*
 // Fill in your WiFi router SSID and password
 const char* ssid = "MySSID2";
 const char* password = "12345678";
-MDNSResponder mdns;
+*/
 String in1 = "10";
 String in2 = "2";
-
-
-void createHotSpot();
-void joinWifiNetwork();
-void returnOK();
-void returnFail(String msg);
-String getHTML();
-
-
-ESP8266WebServer server(80);
 
 
 // GPIO#0 is for Adafruit ESP8266 HUZZAH board. Your board LED might be on 13.
 const int LEDPIN = LED_BUILTIN;
 
+extern MyServer myServer;
+extern ESP8266WebServer server;
+extern MDNSResponder mdns;
 
-void handleRoot()
+
+void setup(void)
 {
-  if (server.hasArg("IN1") || server.hasArg("IN2")) {
-    handleSubmit();
-  }
-  server.send(200, "text/html", getHTML());
-}
-
-void handleSubmit()
-{
-
-  if (!server.hasArg("IN1") || !server.hasArg("IN2")) 
-    return returnFail("BAD ARGS");
-  //String LEDvalue;
-  in1 = server.arg("IN1");
-  in2 = server.arg("IN2");
-
-  Serial.println("IN1: " + in1);
-  Serial.println("IN2: " + in2);
-
+  pinMode(LED_BUILTIN, OUTPUT);
   writeLED(true);
-  delay(500);
-  writeLED(false);
-  
+
+  Serial.begin(115200);
+ 
+  myServer.joinWifiNetwork("VANESA", "master2020");
 }
 
-void returnOK()
-{
-  server.sendHeader("Connection", "close");
-  server.sendHeader("Access-Control-Allow-Origin", "*");
-  server.send(200, "text/plain", "OK\r\n");
-}
 
-void returnFail(String msg)
+void loop(void)
 {
-  server.sendHeader("Connection", "close");
-  server.sendHeader("Access-Control-Allow-Origin", "*");
-  server.send(500, "text/plain", msg + "\r\n");
+  myServer.handle_Client();
 }
 
 
@@ -98,6 +72,39 @@ void handleNotFound()
   server.send(404, "text/plain", message);
 }
 
+void handleSubmit()
+{
+  if (!server.hasArg("IN1") || !server.hasArg("IN2")) 
+    return myServer.returnFail("BAD ARGS");
+  //String LEDvalue;
+  in1 = server.arg("IN1");
+  in2 = server.arg("IN2");
+
+  Serial.println("IN1: " + in1);
+  Serial.println("IN2: " + in2);
+
+  writeLED(true);
+  delay(500);
+  writeLED(false);
+}
+
+void handleRoot()
+{
+  if (server.hasArg("IN1") || server.hasArg("IN2")) {
+    //handleSubmit();
+    in1 = server.arg("IN1");
+    in2 = server.arg("IN2");
+
+    Serial.println("IN1: " + in1);
+    Serial.println("IN2: " + in2);
+
+    writeLED(true);
+    delay(500);
+    writeLED(false);
+  }
+  server.send(200, "text/html", myServer.getHTML(in1, in2));
+}
+
 void writeLED(bool LEDon)
 {
   // Note inverted logic for Adafruit HUZZAH board
@@ -107,105 +114,5 @@ void writeLED(bool LEDon)
     digitalWrite(LEDPIN, 1);
 }
 
-void setup(void)
-{
-  pinMode(LEDPIN, OUTPUT);
-  writeLED(false);
-
-  Serial.begin(115200);
- /* 
-*/
-  joinWifiNetwork();
-}
-
-
-void loop(void)
-{
-  server.handleClient();
-}
-
-
-void joinWifiNetwork(){
-
-  const char* ssid = "VANESA";
-  const char* password = "master2020";
-  WiFi.begin(ssid, password);
-  Serial.println("");
-
-  // Wait for connection
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.println("");
-  Serial.print("Connected to ");
-  Serial.println(ssid);
-  Serial.print("IP address: ");
-  Serial.println(WiFi.localIP());
-
-  if (mdns.begin("esp8266WebForm", WiFi.localIP())) {
-    Serial.println("MDNS responder started");
-  }
-
-  server.on("/", handleRoot);
-  //server.on("/ledon", handleLEDon);
-  //server.on("/ledoff", handleLEDoff);
-  server.onNotFound(handleNotFound);
-
-  server.begin();
-  Serial.print("Connect to http://");
-  Serial.println(WiFi.localIP());
-  
-}
-
-void createHotSpot(){
-  Serial.println();
-  Serial.print("Configuring access point...");
-  WiFi.softAP(ssid, password);
-  IPAddress myIP = WiFi.softAPIP();
-  
-  Serial.print("AP IP address: ");
-  Serial.println(myIP);
-
-  server.on("/", handleRoot);
-  //server.on("/ledon", handleLEDon);
-  //server.on("/ledoff", handleLEDoff);
-  server.onNotFound(handleNotFound);
-
-  server.begin();
-  Serial.print("Connect to http://");
-  Serial.println(myIP);
-  
-}
-
-String getHTML(){
-
-  String INDEX_HTML =
-  "<!DOCTYPE HTML>"
-  "<html>"
-  "<head>"
-  "<meta name = \"viewport\" content = \"width = device-width, initial-scale = 1.0, maximum-scale = 1.0, user-scalable=0\">"
-  "<title>Botonera DALI</title>"
-  "<style>"
-  "\"body { background-color: #808080; font-family: Arial, Helvetica, Sans-Serif; Color: #000000; }\""
-  "</style>"
-  "</head>"
-  "<body>"
-  "<h1>Botonera DALI</h1>"
-  "<FORM >"
-  "<P>"
-  "IN1:<BR>"
-  "<INPUT type=\"number\" name=\"IN1\" value="+in1+" min=\"1\" max=\"16\"><BR><BR>"
-  "IN2:<BR>"
-  "<INPUT type=\"number\" name=\"IN2\" value="+in2+" min=\"1\" max=\"16\"><BR><BR>"
-  "<INPUT type=\"submit\" value=\"Send\"> <INPUT type=\"reset\">"
-  "</P>"
-  "</FORM>"
-  "</body>"
-  "</html>";
-  
-  return INDEX_HTML;
-
-}
 
 

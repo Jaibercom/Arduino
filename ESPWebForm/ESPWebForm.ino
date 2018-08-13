@@ -20,7 +20,7 @@
 #include <ESP8266mDNS.h>
 
 // Fill in your WiFi router SSID and password
-const char* ssid = "MySSID2";
+const char* ssid = "MyNetwork";
 const char* password = "12345678";
 MDNSResponder mdns;
 
@@ -147,7 +147,7 @@ void setup(void)
   pinMode(LEDPIN, OUTPUT);
   writeLED(false);
 
-  Serial.begin(115200);
+  Serial.begin(9600);
  /* WiFi.begin(ssid, password);
   Serial.println("");
 
@@ -169,8 +169,15 @@ void setup(void)
   Serial.println();
   Serial.print("Configuring access point...");
   WiFi.softAP(ssid, password);
-  IPAddress myIP = WiFi.softAPIP();
   
+  IPAddress ip(192, 168, 10, 1);
+  IPAddress nMask(255, 255, 255, 0);
+  if(!WiFi.softAPConfig(ip, ip, nMask)){
+      Serial.println("AP Config Failed");
+  }
+  
+  
+  IPAddress myIP = WiFi.softAPIP();
   Serial.print("AP IP address: ");
   Serial.println(myIP);
 
